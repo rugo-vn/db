@@ -23,9 +23,9 @@
     "mongodb-memory-server": "^8.5.2"
   },
   "dependencies": {
-    "@rugo-vn/exception": "../exception",
-    "@rugo-vn/schema": "../schema",
-    "@rugo-vn/service": "../service",
+    "@rugo-vn/exception": "^1.0.0",
+    "@rugo-vn/schema": "^1.0.0",
+    "@rugo-vn/service": "^2.0.1",
     "colors": "^1.4.0",
     "mongodb": "^4.8.1",
     "ramda": "^0.28.0",
