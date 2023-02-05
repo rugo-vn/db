@@ -1,13 +1,13 @@
-import { RugoException } from "@rugo-vn/exception";
-import { mergeAll, update } from "ramda";
-import { count } from "./actions.js";
-import { DEFAULT_LIMIT, NOT_REQURIED_SCHEMA } from "./constants.js";
-import { aliasId } from "./utils.js";
+import { RugoException } from '@rugo-vn/exception';
+import { mergeAll, update } from 'ramda';
+import { count } from './actions.js';
+import { DEFAULT_LIMIT, NOT_REQURIED_SCHEMA } from './constants.js';
+import { aliasId } from './utils.js';
 
 import * as actions from './actions.js';
 
 export const before = {
-  async all(args) {
+  async all (args) {
     const { spaceId, tableName } = args;
     const name = spaceId && tableName ? `${spaceId}.${tableName}` : null;
     args.name = name;
@@ -16,14 +16,14 @@ export const before = {
   setSchema: ['prepareCollection'],
   restore: ['prepareCollection'],
 
-  create: [async function({ data }) {
+  create: [async function ({ data }) {
     const now = new Date().toISOString();
     data.createdAt ||= now;
     data.updatedAt ||= now;
     data.version = 1;
   }],
 
-  find: [async function(args) {
+  find: [async function (args) {
     let { limit, skip, page } = args;
 
     // default limit
@@ -60,25 +60,25 @@ export const before = {
     args.skip = skip;
   }],
 
-  update: [async function(args) {
+  update: [async function (args) {
     args.set ||= {};
     args.inc ||= {};
 
     args.set.updatedAt = new Date().toISOString();
     args.inc.version = 1;
-  }],
-}
+  }]
+};
 
-for (let name in actions) {
+for (const name in actions) {
   before[name] ||= [];
   if (NOT_REQURIED_SCHEMA.indexOf(name) === -1) {
     before[name].unshift('isSchema');
-    before[name].unshift('prepareCollection')
+    before[name].unshift('prepareCollection');
   }
 }
 
 export const after = {
-  async find(data, args) {
+  async find (data, args) {
     const total = await count.bind(this)(args);
 
     let { skip, page } = args;
@@ -118,7 +118,7 @@ export const after = {
     }
 
     return {
-      data: data.map(aliasId), 
+      data: data.map(aliasId),
       meta: {
         limit,
         total,
@@ -129,5 +129,5 @@ export const after = {
     };
   },
 
-  ...mergeAll(['get', 'create', 'update', 'remove'].map(name => ({ [name]: aliasId }))),
-}
+  ...mergeAll(['get', 'create', 'update', 'remove'].map(name => ({ [name]: aliasId })))
+};

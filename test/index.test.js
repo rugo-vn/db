@@ -129,7 +129,7 @@ describe('db test', () => {
 
     const data = await broker.call(`db.find`, {
       spaceId: SPACE_ID, tableName: TABLE_NAME,
-      filters: { age: 999 },
+      filters: { age: '999' },
       skip: 1,
       limit: 1,
     });

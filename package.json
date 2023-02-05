@@ -1,6 +1,6 @@
 {
   "name": "@rugo-vn/db",
-  "version": "1.0.0",
+  "version": "1.0.1-beta.1",
   "description": "",
   "main": "index.js",
   "type": "module",
@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@rugo-vn/exception": "^1.0.0",
-    "@rugo-vn/schema": "^1.0.0",
+    "@rugo-vn/schema": "1.0.1-beta.1",
     "@rugo-vn/service": "^2.0.1",
     "colors": "^1.4.0",
     "mongodb": "^4.8.1",

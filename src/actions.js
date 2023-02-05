@@ -1,17 +1,15 @@
 import temp from 'temp';
-import { writeFileSync } from 'fs';
 import { ObjectId } from 'mongodb';
-import { Schema } from "@rugo-vn/schema";
-import { buildQuery, mongodump, mongorestore, removeDefault } from "./utils.js";
+import { Schema } from '@rugo-vn/schema';
+import { mongodump, mongorestore, removeDefault } from './utils.js';
 import { FileCursor } from '@rugo-vn/service';
 import { basename, dirname } from 'path';
-import { NotFoundError } from '@rugo-vn/exception';
 
-export const clearSchemas = async function() {
+export const clearSchemas = async function () {
   this.registers = {};
-}
+};
 
-export const setSchema = async function({ name, schema, collection }) {
+export const setSchema = async function ({ name, schema, collection }) {
   const nextSchema = new Schema(schema);
   const dbSchema = Schema.walk(nextSchema.toFinal(), removeDefault);
 
@@ -21,7 +19,7 @@ export const setSchema = async function({ name, schema, collection }) {
   await this.db.command({
     collMod: name,
     validator: {
-      $jsonSchema: dbSchema,
+      $jsonSchema: dbSchema
     }
   });
 
@@ -47,15 +45,15 @@ export const setSchema = async function({ name, schema, collection }) {
   }
 
   return this.registers[name];
-}
+};
 
-export const getSchema = async function({ name }) {
+export const getSchema = async function ({ name }) {
   return this.registers[name];
-}
+};
 
-export const get = async function({ collection, id }) {
+export const get = async function ({ collection, id }) {
   return await collection.findOne({ _id: ObjectId(id) });
-}
+};
 
 export const create = async function ({ collection, data }) {
   const res = await collection.insertOne(data);
@@ -63,9 +61,9 @@ export const create = async function ({ collection, data }) {
   return await get.bind(this)({ collection, id: res.insertedId });
 };
 
-export const find = async function (args) { 
+export const find = async function (args) {
   const { collection, sort } = args;
-  const filters = buildQuery(args);
+  const filters = this.buildQuery(args);
   let { skip, limit } = args;
 
   // find many
@@ -90,7 +88,7 @@ export const find = async function (args) {
 
 export const count = async function (args) {
   const { collection } = args;
-  const filters = buildQuery(args);
+  const filters = this.buildQuery(args);
 
   return await collection.countDocuments(filters);
 };
@@ -106,8 +104,7 @@ export const update = async function ({ collection, id, set = {}, unset = {}, in
     $inc: inc
   });
 
-  if (!res.matchedCount)
-    return null;
+  if (!res.matchedCount) { return null; }
 
   return await get.bind(this)({ collection, id });
 };
@@ -116,16 +113,15 @@ export const remove = async function ({ collection, id }) {
   const row = await get.bind(this)({ collection, id });
 
   const res = await collection.deleteOne({
-    _id: ObjectId(id),
+    _id: ObjectId(id)
   });
 
-  if (!res.deletedCount)
-    return null;
+  if (!res.deletedCount) { return null; }
 
   return row;
 };
 
-export const backup = async function({ name }) {
+export const backup = async function ({ name }) {
   const filePath = temp.path({ suffix: '.bson', prefix: 'rugo-' });
 
   await mongodump({
@@ -136,14 +132,14 @@ export const backup = async function({ name }) {
   });
 
   return FileCursor(filePath);
-}
+};
 
-export const restore = async function({ name, from }) {
+export const restore = async function ({ name, from }) {
   await mongorestore({
     uri: this.mongoUri,
     collection: name,
     dropBeforeRestore: true,
-    dumpFile: FileCursor(from).toPath(),
+    dumpFile: FileCursor(from).toPath()
   });
   return true;
-}
+};
