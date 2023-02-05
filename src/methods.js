@@ -43,5 +43,11 @@ export const buildQuery = function ({ filters = {}, name /*, search, searches, u
   //     ]
   //   };
   // }
-  return nextSchema.validate(filters);
+
+  // @todo: correct this query behavior
+  try {
+    return nextSchema.validate(filters, false);
+  } catch (_) {
+    return filters;
+  }
 };
