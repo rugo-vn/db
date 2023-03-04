@@ -2,6 +2,8 @@ import { path } from 'ramda';
 import { MongoClient } from 'mongodb';
 import { RugoException } from '@rugo-vn/exception';
 
+import { createConnection } from './mongoose.next.js';
+
 export const name = 'db';
 
 export * as actions from './actions.js';
@@ -16,19 +18,8 @@ export const started = async function () {
   }
 
   this.mongoUri = mongoUri;
-  this.client = await new Promise((resolve, reject) => {
-    MongoClient.connect(mongoUri, { useUnifiedTopology: true }, (err, client) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-
-      this.logger.info('Connected to mongodb server.');
-      resolve(client);
-    });
-  });
-
-  this.db = this.client.db();
+  this.client = await createConnection(mongoUri).asPromise();
+  this.db = this.client.getClient().db();
   this.registers = {};
 };
 

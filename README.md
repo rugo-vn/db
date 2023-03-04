@@ -56,7 +56,7 @@ Return:
 
 Arguments:
 
-- `filters` (type: `object`) query to filter row.
+- `filters` (type: `object`) query to filter row. You can applied mongodb's query.
 - `limit` (type: `number`) limit row returned.
 - `sort` (type: `object`) sort by field. (Ex: `sort: { 'nameAsc': 1, 'nameDesc': -1 }`).
 - `skip` (type: `number`) skip amount of row.

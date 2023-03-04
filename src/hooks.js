@@ -7,78 +7,76 @@ import { aliasId } from './utils.js';
 import * as actions from './actions.js';
 
 export const before = {
-  async all (args) {
+  async all(args) {
     const { spaceId, tableName } = args;
     const name = spaceId && tableName ? `${spaceId}.${tableName}` : null;
     args.name = name;
   },
 
-  setSchema: ['prepareCollection'],
-  restore: ['prepareCollection'],
+  setSchema: ['prepareModel'],
+  restore: ['prepareModel'],
 
-  create: [async function ({ data }) {
-    const now = new Date().toISOString();
-    data.createdAt ||= now;
-    data.updatedAt ||= now;
-    data.version = 1;
-  }],
+  find: [
+    async function (args) {
+      let { limit, skip, page } = args;
 
-  find: [async function (args) {
-    let { limit, skip, page } = args;
-
-    // default limit
-    limit = parseInt(limit);
-    if (isNaN(limit)) {
-      limit = DEFAULT_LIMIT;
-    }
-
-    // pagination: start from 1
-    page = parseInt(page);
-    skip = parseInt(skip);
-    if (limit === -1) {
-      page = 1;
-    } else if (limit === 0) {
-      page = 0; // no pagination
-    } else {
-      const skipPage = Math.floor((skip || 0) / limit) + 1;
-      if (!isNaN(page) && skipPage !== page) { // page priority
-        skip = (page - 1) * limit;
-      } else {
-        page = skipPage;
+      // default limit
+      limit = parseInt(limit);
+      if (isNaN(limit)) {
+        limit = DEFAULT_LIMIT;
       }
-    }
 
-    // default skip
-    skip ||= 0;
+      // pagination: start from 1
+      page = parseInt(page);
+      skip = parseInt(skip);
+      if (limit === -1) {
+        page = 1;
+      } else if (limit === 0) {
+        page = 0; // no pagination
+      } else {
+        const skipPage = Math.floor((skip || 0) / limit) + 1;
+        if (!isNaN(page) && skipPage !== page) {
+          // page priority
+          skip = (page - 1) * limit;
+        } else {
+          page = skipPage;
+        }
+      }
 
-    if (limit === -1) {
-      delete args.limit;
-    } else {
-      args.limit = limit;
-    }
+      // default skip
+      skip ||= 0;
 
-    args.skip = skip;
-  }],
+      if (limit === -1) {
+        delete args.limit;
+      } else {
+        args.limit = limit;
+      }
 
-  update: [async function (args) {
-    args.set ||= {};
-    args.inc ||= {};
+      args.skip = skip;
+    },
+  ],
 
-    args.set.updatedAt = new Date().toISOString();
-    args.inc.version = 1;
-  }]
+  update: [
+    async function (args) {
+      args.set ||= {};
+      args.inc ||= {};
+
+      args.set.updatedAt = new Date().toISOString();
+      args.inc.version = 1;
+    },
+  ],
 };
 
 for (const name in actions) {
   before[name] ||= [];
   if (NOT_REQURIED_SCHEMA.indexOf(name) === -1) {
     before[name].unshift('isSchema');
-    before[name].unshift('prepareCollection');
+    before[name].unshift('prepareModel');
   }
 }
 
 export const after = {
-  async find (data, args) {
+  async find(data, args) {
     const total = await count.bind(this)(args);
 
     let { skip, page } = args;
@@ -105,7 +103,8 @@ export const after = {
       page = 0; // no pagination
     } else {
       const skipPage = Math.floor((skip || 0) / limit) + 1;
-      if (!isNaN(page) && skipPage !== page) { // page priority
+      if (!isNaN(page) && skipPage !== page) {
+        // page priority
         skip = (page - 1) * limit;
       } else {
         page = skipPage;
@@ -124,10 +123,12 @@ export const after = {
         total,
         skip,
         page,
-        npage
-      }
+        npage,
+      },
     };
   },
 
-  ...mergeAll(['get', 'create', 'update', 'remove'].map(name => ({ [name]: aliasId })))
+  ...mergeAll(
+    ['get', 'create', 'update', 'remove'].map((name) => ({ [name]: aliasId }))
+  ),
 };

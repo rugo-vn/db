@@ -1,48 +1,39 @@
 import temp from 'temp';
-import { ObjectId } from 'mongodb';
-import { Schema } from '@rugo-vn/schema';
-import { mongodump, mongorestore, removeDefault } from './utils.js';
-import { FileCursor } from '@rugo-vn/service';
 import { basename, dirname } from 'path';
+import { FileCursor } from '@rugo-vn/service';
+import { extractSchema } from '@rugo-vn/schema';
+
+import { Schema } from './mongoose.next.js';
+import { mongodump, mongorestore /*, cleanSchema*/ } from './utils.js';
 
 export const clearSchemas = async function () {
+  for (const name in this.registers) this.client.deleteModel(name);
   this.registers = {};
 };
 
-export const setSchema = async function ({ name, schema, collection }) {
-  const nextSchema = new Schema(schema);
-  const dbSchema = Schema.walk(nextSchema.toFinal(), removeDefault);
-
-  this.registers[name] = nextSchema.toModel();
-
-  // validator
-  await this.db.command({
-    collMod: name,
-    validator: {
-      $jsonSchema: dbSchema
-    }
+export const setSchema = async function ({ name, schema: rawSchema }) {
+  const [_, schema] = extractSchema(rawSchema);
+  const nextSchema = new Schema(schema, {
+    timestamps: true,
+    versionKey: 'version',
   });
+  // const dbSchema = RugoSchema(nextSchema.jsonSchema()).walk(cleanSchema);
+  const model = this.client.model(name, nextSchema, null, {
+    overwriteModels: true,
+  });
+  // const { collectionName } = model.collection;
 
-  // indexes
-  const uniques = schema.uniques || [];
+  this.registers[name] = model;
 
-  const newIndexes = {};
-  for (const property of uniques) {
-    newIndexes[property] = {
-      ...(newIndexes[property] || { dir: 1 }),
-      unique: true
-    };
-  }
+  // @todo: applided jsonSchema
+  // await model.init();
 
-  // drop old indexes
-  await collection.dropIndexes();
-
-  // create new indexes
-  for (const indexName in newIndexes) {
-    const index = newIndexes[indexName];
-
-    await collection.createIndex({ [indexName]: index.dir }, { name: indexName, unique: index.unique });
-  }
+  // await this.db.command({
+  //   collMod: collectionName,
+  //   validator: {
+  //     $jsonSchema: dbSchema,
+  //   },
+  // });
 
   return this.registers[name];
 };
@@ -51,23 +42,21 @@ export const getSchema = async function ({ name }) {
   return this.registers[name];
 };
 
-export const get = async function ({ collection, id }) {
-  return await collection.findOne({ _id: ObjectId(id) });
+export const get = async function ({ model, id }) {
+  return await model.findById(id);
 };
 
-export const create = async function ({ collection, data }) {
-  const res = await collection.insertOne(data);
-
-  return await get.bind(this)({ collection, id: res.insertedId });
+export const create = async function ({ model, data }) {
+  return await model.create(data);
 };
 
 export const find = async function (args) {
-  const { collection, sort } = args;
+  const { model, sort } = args;
   const filters = this.buildQuery(args);
   let { skip, limit } = args;
 
   // find many
-  let queryBuilder = collection.find(filters);
+  let queryBuilder = model.find(filters);
 
   if (sort) {
     queryBuilder = queryBuilder.sort(sort);
@@ -83,63 +72,59 @@ export const find = async function (args) {
     queryBuilder = queryBuilder.limit(parseInt(limit));
   }
 
-  return await queryBuilder.toArray();
+  return await queryBuilder.exec();
 };
 
 export const count = async function (args) {
-  const { collection } = args;
+  const { model } = args;
   const filters = this.buildQuery(args);
 
-  return await collection.countDocuments(filters);
+  return await model.countDocuments(filters);
 };
 
-export const update = async function ({ collection, id, set = {}, unset = {}, inc = {} }) {
+export const update = async function ({
+  model,
+  id,
+  set = {},
+  unset = {},
+  inc = {},
+}) {
   delete set.version;
 
-  const res = await collection.updateOne({
-    _id: ObjectId(id)
-  }, {
-    $set: set,
-    $unset: unset,
-    $inc: inc
-  });
-
-  if (!res.matchedCount) { return null; }
-
-  return await get.bind(this)({ collection, id });
+  return await model.findByIdAndUpdate(
+    id,
+    {
+      $set: set,
+      $inc: inc,
+      $unset: unset,
+    },
+    { returnDocument: 'after', runValidators: true }
+  );
 };
 
-export const remove = async function ({ collection, id }) {
-  const row = await get.bind(this)({ collection, id });
-
-  const res = await collection.deleteOne({
-    _id: ObjectId(id)
-  });
-
-  if (!res.deletedCount) { return null; }
-
-  return row;
+export const remove = async function ({ model, id }) {
+  return await model.findByIdAndDelete(id);
 };
 
-export const backup = async function ({ name }) {
+export const backup = async function ({ collectionName }) {
   const filePath = temp.path({ suffix: '.bson', prefix: 'rugo-' });
 
   await mongodump({
     uri: this.mongoUri,
-    collection: name,
+    collection: collectionName,
     path: dirname(filePath),
-    fileName: basename(filePath)
+    fileName: basename(filePath),
   });
 
   return FileCursor(filePath);
 };
 
-export const restore = async function ({ name, from }) {
+export const restore = async function ({ collectionName, from }) {
   await mongorestore({
     uri: this.mongoUri,
-    collection: name,
+    collection: collectionName,
     dropBeforeRestore: true,
-    dumpFile: FileCursor(from).toPath()
+    dumpFile: FileCursor(from).toPath(),
   });
   return true;
 };
