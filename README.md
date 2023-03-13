@@ -14,7 +14,10 @@ _@rugo-vn/db_
 
 ```js
 const settings = {
-  db: /* optional, mongo db connection string */,
+  db: {
+    uri: /* optional, mongo db connection string */,
+    secure: /* enable secure db, default: false */
+  }
 }
 ```
 
@@ -140,6 +143,21 @@ Arguments:
 Return:
 
 - (type: `boolean`) restore success or not
+
+## SecureDB
+
+We have SecureDB that was built on top of RugoDB. It can be enabled in the setting section above.
+
+When SecureDB is enabled, it will create a new table call `_keys` for key management purpose, which has schema:
+
+```js
+const keySchema = new Schema({
+  /* _id by default */,
+  data: 'String', /* previous encrypted key by current key */,
+  hash: 'String', /* hashed of current key by SHA256 */,
+  prev: 'ObjectId', /* previous key link */,
+});
+```
 
 ## License
 
