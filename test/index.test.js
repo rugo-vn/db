@@ -8,30 +8,41 @@ const DB_NAME = 'test';
 const SPACE_ID = 'test';
 const TABLE_NAME = 'demo';
 const SCHEMA = {
-  _comment: { type: 'ignore_this_field', required: true },
-
-  name: { type: 'string', required: true, unique: true },
-  title: 'string',
-  slug: {
-    type: 'string',
-  },
-  age: { type: 'number', min: 0 },
-  dob: 'date',
-  parent: {
-    foo: { type: 'string' },
-    bar: 'string',
-    count: {
-      type: 'number',
-      default: 0,
-      max: 100,
+  name: TABLE_NAME,
+  properties: {
+    name: { type: 'string', required: true, unique: true },
+    title: { type: 'string' },
+    slug: {
+      type: 'string',
     },
-    complex: [
-      {
-        more: { type: 'string', required: true },
+    age: { type: 'number', min: 0 },
+    dob: { type: 'date' },
+    parent: {
+      properties: {
+        foo: { type: 'string' },
+        bar: { type: 'string' },
+        count: {
+          type: 'number',
+          default: 0,
+          max: 100,
+        },
+        complex: {
+          type: 'array',
+          items: {
+            properties: {
+              more: { type: 'string', required: true },
+            },
+          },
+        },
       },
-    ],
+    },
+    schemas: {
+      type: 'array',
+      items: {
+        type: 'object',
+      },
+    },
   },
-  schemas: ['object'],
 };
 
 describe('db test', () => {
@@ -48,7 +59,9 @@ describe('db test', () => {
     // create broker
     broker = createBroker({
       _services: ['./src/index.js'],
-      db: `${mongod.getUri()}${DB_NAME}`,
+      db: {
+        uri: `${mongod.getUri()}${DB_NAME}`,
+      },
     });
 
     await broker.loadServices();
@@ -63,14 +76,12 @@ describe('db test', () => {
   it('should set and get schema', async () => {
     const res = await broker.call('db.setSchema', {
       spaceId: SPACE_ID,
-      tableName: TABLE_NAME,
       schema: SCHEMA,
     });
     expect(res).to.has.property('modelName', `${SPACE_ID}.${TABLE_NAME}`);
 
     const res2 = await broker.call('db.setSchema', {
       spaceId: SPACE_ID,
-      tableName: TABLE_NAME,
       schema: SCHEMA,
     });
     expect(res2).to.has.property('modelName', `${SPACE_ID}.${TABLE_NAME}`);

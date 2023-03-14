@@ -20,13 +20,12 @@
   },
   "dependencies": {
     "@rugo-vn/exception": "^1.0.0",
-    "@rugo-vn/schema": "^1.0.1-beta.2",
+    "@rugo-vn/schema": "../schema",
     "@rugo-vn/service": "^2.0.1",
     "colors": "^1.4.0",
     "crypto-js": "^4.1.1",
     "mongodb": "^4.8.1",
-    "mongoose": "^6.10.0",
-    "mongoose-schema-jsonschema": "^2.0.2",
+    "mongoose": "^7.0.1",
     "ramda": "^0.28.0",
     "temp": "^0.9.4"
   }

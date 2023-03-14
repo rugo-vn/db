@@ -2,14 +2,15 @@ import { RugoException } from '@rugo-vn/exception';
 import { mergeAll, update } from 'ramda';
 import { count } from './actions.js';
 import { DEFAULT_LIMIT, NOT_REQURIED_SCHEMA } from './constants.js';
-import { aliasId } from './utils.js';
+import { aliasId, generateCollectionName } from './utils.js';
 
 import * as actions from './actions.js';
 
 export const before = {
   async all(args) {
-    const { spaceId, tableName } = args;
-    const name = spaceId && tableName ? `${spaceId}.${tableName}` : null;
+    const { spaceId, tableName, schema } = args;
+    const nextTableName = tableName || schema?.name;
+    const name = generateCollectionName(spaceId, nextTableName);
     args.name = name;
   },
 

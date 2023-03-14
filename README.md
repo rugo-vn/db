@@ -152,10 +152,13 @@ When SecureDB is enabled, it will create a new table call `_keys` for key manage
 
 ```js
 const keySchema = new Schema({
-  /* _id by default */,
-  data: 'String', /* previous encrypted key by current key */,
-  hash: 'String', /* hashed of current key by SHA256 */,
-  prev: 'ObjectId', /* previous key link */,
+  name: '_keys',
+  properties: {
+    /* _id by default */,
+    data: /* previous encrypted key by current key */,
+    hash: /* hashed of current key by SHA256 */,
+    prev: /* previous key link */,
+  }
 });
 ```
 

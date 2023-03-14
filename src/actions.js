@@ -1,41 +1,45 @@
 import temp from 'temp';
 import { basename, dirname } from 'path';
 import { FileCursor } from '@rugo-vn/service';
-import { extractSchema } from '@rugo-vn/schema';
+import { Schema } from '@rugo-vn/schema';
 
-import { Schema } from './mongoose.next.js';
-import { mongodump, mongorestore /*, cleanSchema*/ } from './utils.js';
+import {
+  generateCollectionName,
+  mongodump,
+  mongorestore /*, cleanSchema*/,
+} from './utils.js';
 
 export const clearSchemas = async function () {
   for (const name in this.registers) this.client.deleteModel(name);
   this.registers = {};
 };
 
-export const setSchema = async function ({ name, schema: rawSchema }) {
-  const [_, schema] = extractSchema(rawSchema);
-  const nextSchema = new Schema(schema, {
-    timestamps: true,
-    versionKey: 'version',
+export const setSchema = async function ({ spaceId, schema: rawSchema }) {
+  const schema = new Schema(rawSchema, {
+    name: (val) => generateCollectionName(spaceId, val),
+    ref: (val) => generateCollectionName(spaceId, val),
   });
+  // console.log(schema.toJSON(true));
   // const dbSchema = RugoSchema(nextSchema.jsonSchema()).walk(cleanSchema);
-  const model = this.client.model(name, nextSchema, null, {
-    overwriteModels: true,
-  });
+  const model = this.client.model(
+    schema.name,
+    schema.toMongoose(),
+    schema.name,
+    {
+      overwriteModels: true,
+    }
+  );
   // const { collectionName } = model.collection;
-
-  this.registers[name] = model;
-
+  this.registers[schema.name] = model;
   // @todo: applided jsonSchema
   // await model.init();
-
   // await this.db.command({
   //   collMod: collectionName,
   //   validator: {
   //     $jsonSchema: dbSchema,
   //   },
   // });
-
-  return this.registers[name];
+  return this.registers[schema.name];
 };
 
 export const getSchema = async function ({ name }) {

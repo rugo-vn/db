@@ -11,7 +11,7 @@ export * as hooks from './hooks.js';
 export * as methods from './methods.js';
 
 export const started = async function () {
-  const mongoUri = path(['settings', 'db'], this);
+  const mongoUri = path(['settings', 'db', 'uri'], this);
 
   if (!mongoUri) {
     throw new RugoException('Mongo settings was not defined.');
