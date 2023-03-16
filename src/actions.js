@@ -8,6 +8,7 @@ import {
   mongodump,
   mongorestore /*, cleanSchema*/,
 } from './utils.js';
+import { mergeDeepLeft } from 'ramda';
 
 export const clearSchemas = async function () {
   for (const name in this.registers) this.client.deleteModel(name);
@@ -19,7 +20,6 @@ export const setSchema = async function ({ spaceId, schema: rawSchema }) {
     name: (val) => generateCollectionName(spaceId, val),
     ref: (val) => generateCollectionName(spaceId, val),
   });
-  // console.log(schema.toJSON(true));
   // const dbSchema = RugoSchema(nextSchema.jsonSchema()).walk(cleanSchema);
   const model = this.client.model(
     schema.name,
@@ -46,21 +46,26 @@ export const getSchema = async function ({ name }) {
   return this.registers[name];
 };
 
-export const get = async function ({ model, id }) {
-  return await model.findById(id);
+export const get = async function (args) {
+  args.filters ||= {};
+  args.filters.id = args.id;
+  return (await find.bind(this)(args))[0] || null;
 };
 
-export const create = async function ({ model, data }) {
+export const create = async function ({ model, data = {}, passport = {} }) {
+  data = mergeDeepLeft(passport, data);
   return await model.create(data);
 };
 
 export const find = async function (args) {
   const { model, sort } = args;
+
   const filters = this.buildQuery(args);
   let { skip, limit } = args;
 
   // find many
-  let queryBuilder = model.find(filters);
+  let queryBuilder =
+    args.id || args._id ? model.findOne(filters) : model.find(filters);
 
   if (sort) {
     queryBuilder = queryBuilder.sort(sort);
@@ -76,7 +81,9 @@ export const find = async function (args) {
     queryBuilder = queryBuilder.limit(parseInt(limit));
   }
 
-  return await queryBuilder.exec();
+  const data = await queryBuilder.exec();
+
+  return Array.isArray(data) ? data : [data];
 };
 
 export const count = async function (args) {

@@ -1,5 +1,6 @@
 import { NotFoundError, RugoException } from '@rugo-vn/exception';
 import { ObjectId } from 'mongodb';
+import { mergeDeepLeft } from 'ramda';
 
 export const prepareModel = async function (args) {
   const { name } = args;
@@ -18,15 +19,17 @@ export const isSchema = async function ({ name, spaceId, tableName }) {
   }
 };
 
-export const buildQuery = function ({ filters = {} }) {
+export const buildQuery = function ({ filters = {}, passport = {} }) {
   if (filters._id) {
     filters._id = ObjectId(filters._id);
   }
+
   if (filters.id) {
     filters._id = ObjectId(filters.id);
   }
-
   delete filters.id;
+
+  filters = mergeDeepLeft(passport, filters);
 
   return filters;
 };
