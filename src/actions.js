@@ -117,12 +117,12 @@ export const remove = async function ({ model, id }) {
   return await model.findByIdAndDelete(id);
 };
 
-export const backup = async function ({ collectionName }) {
+export const backup = async function ({ name }) {
   const filePath = temp.path({ suffix: '.bson', prefix: 'rugo-' });
 
   await mongodump({
     uri: this.mongoUri,
-    collection: collectionName,
+    collection: name,
     path: dirname(filePath),
     fileName: basename(filePath),
   });
@@ -130,10 +130,10 @@ export const backup = async function ({ collectionName }) {
   return FileCursor(filePath);
 };
 
-export const restore = async function ({ collectionName, from }) {
+export const restore = async function ({ name, from }) {
   await mongorestore({
     uri: this.mongoUri,
-    collection: collectionName,
+    collection: name,
     dropBeforeRestore: true,
     dumpFile: FileCursor(from).toPath(),
   });
