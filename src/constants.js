@@ -6,3 +6,5 @@ export const NOT_REQURIED_SCHEMA = [
   'restore',
   'clearSchemas',
 ];
+
+export const INVALID_PROPS = ['_id', 'id', 'sort', 'skip', 'limit', 'page'];

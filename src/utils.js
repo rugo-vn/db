@@ -2,7 +2,6 @@ import { exec } from '@rugo-vn/service';
 import { basename, join } from 'path';
 import rimraf from 'rimraf';
 import temp from 'temp';
-import { RugoException } from '@rugo-vn/exception';
 
 export const cleanSchema = (keyword, value, tracks) => {
   if (keyword === 'default') {

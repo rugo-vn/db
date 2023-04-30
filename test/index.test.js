@@ -1,11 +1,8 @@
-/* eslint-disable */
-
-import { createBroker, FileCursor } from '@rugo-vn/service';
-import { assert, expect } from 'chai';
+import { spawnService } from '@rugo-vn/service';
 import { MongoMemoryServer } from 'mongodb-memory-server';
+import { expect } from 'chai';
 
 const DB_NAME = 'test';
-const SPACE_ID = 'test';
 const TABLE_NAME = 'demo';
 const SCHEMA = {
   name: TABLE_NAME,
@@ -45,10 +42,10 @@ const SCHEMA = {
   },
 };
 
-describe('db test', () => {
-  let mongod, broker, rowId, backupFile;
+describe('DB test', function () {
+  let service, mongod, rowId;
 
-  before(async () => {
+  it('should spawn service', async () => {
     // mongo
     mongod = await MongoMemoryServer.create({
       instance: {
@@ -56,55 +53,40 @@ describe('db test', () => {
       },
     });
 
-    // create broker
-    broker = createBroker({
-      _services: ['./src/index.js'],
-      db: {
+    // service
+    service = await spawnService({
+      name: 'db',
+      exec: ['node', './src/index.js'],
+      cwd: './',
+      settings: {
         uri: `${mongod.getUri()}${DB_NAME}`,
       },
     });
 
-    await broker.loadServices();
-    await broker.start();
-  });
-
-  after(async () => {
-    await broker.close();
-    await mongod.stop();
-  });
-
-  it('should set and get schema', async () => {
-    const res = await broker.call('db.setSchema', {
-      spaceId: SPACE_ID,
-      schema: SCHEMA,
-    });
-    expect(res).to.has.property('modelName', `${SPACE_ID}.${TABLE_NAME}`);
-
-    const res2 = await broker.call('db.setSchema', {
-      spaceId: SPACE_ID,
-      schema: SCHEMA,
-    });
-    expect(res2).to.has.property('modelName', `${SPACE_ID}.${TABLE_NAME}`);
+    await service.start();
   });
 
   it('should create a row', async () => {
     // single
-    const row = await broker.call(`db.create`, {
-      spaceId: SPACE_ID,
-      tableName: TABLE_NAME,
-      data: {
-        name: 'foo',
-        title: 'Some Foo Đờ 123 # Go go',
-        age: 3,
-        dob: '2022/02/12',
-        parent: { foo: 'a', bar: 'b' },
+    const row = await service.call(
+      `create`,
+      {
+        data: {
+          name: 'foo',
+          title: 'Some Foo Đờ 123 # Go go',
+          age: 3,
+          dob: '2022/02/12',
+          parent: { foo: 'a', bar: 'b' },
+        },
       },
-    });
+      {
+        schema: SCHEMA,
+      }
+    );
 
     expect(row).to.has.property('id');
     expect(row).to.has.property('name', 'foo');
     expect(row).to.has.property('title', 'Some Foo Đờ 123 # Go go');
-    // expect(row).to.has.property('slug', 'some-foo-do-123-go-go');
     expect(row).to.has.property('age', 3);
     expect(row).to.has.property('createdAt');
     expect(row).to.has.property('updatedAt');
@@ -112,25 +94,35 @@ describe('db test', () => {
 
     // many
     for (let i = 0; i < 3; i++) {
-      await broker.call(`db.create`, {
-        spaceId: SPACE_ID,
-        tableName: TABLE_NAME,
-        data: {
-          name: 'many_' + i,
-          age: 999,
+      await service.call(
+        `create`,
+        {
+          data: {
+            name: 'many_' + i,
+            age: 999,
+          },
         },
-      });
+        {
+          schema: SCHEMA,
+        }
+      );
     }
   });
 
   it('should find a row', async () => {
     const row = (
-      await broker.call(`db.find`, {
-        spaceId: SPACE_ID,
-        tableName: TABLE_NAME,
-        filters: { name: 'foo' },
-        sort: { createdAt: -1 },
-      })
+      await service.call(
+        `find`,
+        {
+          cond: {
+            name: 'foo',
+            sort: { createdAt: '-1' },
+          },
+        },
+        {
+          schema: SCHEMA,
+        }
+      )
     ).data[0];
 
     expect(row).to.has.property('id');
@@ -139,13 +131,15 @@ describe('db test', () => {
 
     rowId = row.id;
 
-    const data = await broker.call(`db.find`, {
-      spaceId: SPACE_ID,
-      tableName: TABLE_NAME,
-      filters: { age: '999' },
-      skip: 1,
-      limit: 1,
-    });
+    const data = await service.call(
+      `find`,
+      {
+        cond: { age: '999', skip: 1, limit: 1 },
+      },
+      {
+        schema: SCHEMA,
+      }
+    );
 
     expect(data.data).to.has.property('length', 1);
     expect(data.meta).to.has.property('total', 3);
@@ -156,11 +150,15 @@ describe('db test', () => {
   });
 
   it('should find a row with special filters conditions', async () => {
-    const data = await broker.call(`db.find`, {
-      spaceId: SPACE_ID,
-      tableName: TABLE_NAME,
-      filters: { age: { $lt: '100' } },
-    });
+    const data = await service.call(
+      `find`,
+      {
+        cond: { age: { $lt: '100' } },
+      },
+      {
+        schema: SCHEMA,
+      }
+    );
 
     expect(data.data).to.has.property('length', 1);
     expect(data.meta).to.has.property('total', 1);
@@ -170,126 +168,125 @@ describe('db test', () => {
     expect(data.meta).to.has.property('npage', 1);
   });
 
-  it('should count row', async () => {
-    const no = await broker.call(`db.count`, {
-      spaceId: SPACE_ID,
-      tableName: TABLE_NAME,
-      filters: { name: 'foo' },
-    });
-
-    expect(no).to.be.eq(1);
-  });
-
   it('should get row', async () => {
-    const row = await broker.call(`db.get`, {
-      spaceId: SPACE_ID,
-      tableName: TABLE_NAME,
-      id: rowId,
-    });
+    const res = await service.call(
+      `find`,
+      {
+        id: rowId,
+      },
+      {
+        schema: SCHEMA,
+      }
+    );
+    const row = res.data[0];
 
+    expect(res.meta).to.has.property('total', 1);
     expect(row).to.has.property('id');
     expect(row).to.has.property('name', 'foo');
     expect(row).to.has.property('title', 'Some Foo Đờ 123 # Go go');
-    // expect(row).to.has.property('slug', 'some-foo-do-123-go-go');
     expect(row).to.has.property('age', 3);
     expect(row).to.has.property('createdAt');
     expect(row).to.has.property('updatedAt');
     expect(row).to.has.property('version', 0);
   });
 
-  it('should update row', async () => {
-    const row = await broker.call(`db.update`, {
-      spaceId: SPACE_ID,
-      tableName: TABLE_NAME,
-      id: rowId,
-      set: {
-        age: 4,
-        'parent.foo': 'abc',
-        schemas: [{ some: 'property', has: 'value' }],
+  it('should replace a row', async () => {
+    const row = await service.call(
+      `replace`,
+      {
+        id: rowId,
+        data: {
+          name: 'foo 2',
+          title: 'the title',
+          age: 5,
+          dob: '2023/02/12',
+          parent: { foo: 'c', bar: 'd' },
+        },
       },
-      inc: { 'parent.count': 1 },
-      unset: { title: true },
-    });
+      {
+        schema: SCHEMA,
+      }
+    );
+
+    expect(row.id).to.be.eq(rowId);
+    expect(row).to.has.property('id');
+    expect(row).to.has.property('name', 'foo 2');
+    expect(row).to.has.property('title', 'the title');
+    expect(row).to.has.property('age', 5);
+    expect(row).to.has.property('createdAt');
+    expect(row).to.has.property('updatedAt');
+    expect(row).to.has.property('version', 0);
+  });
+
+  it('should update row', async () => {
+    const row = await service.call(
+      `update`,
+      {
+        id: rowId,
+        data: {
+          set: {
+            age: 4,
+            'parent.foo': 'abc',
+            schemas: [{ some: 'property', has: 'value' }],
+          },
+          inc: { 'parent.count': 1 },
+          unset: { title: true },
+        },
+      },
+      {
+        schema: SCHEMA,
+      }
+    );
 
     expect(row).not.to.has.property('_id');
     expect(row).to.has.property('id');
-    expect(row).to.has.property('name', 'foo');
+    expect(row).to.has.property('name', 'foo 2');
     expect(row).to.has.property('age', 4);
     expect(row).to.not.has.property('title');
     expect(row.parent).to.has.property('foo', 'abc');
-    expect(row.parent).to.has.property('bar', 'b');
+    expect(row.parent).to.has.property('bar', 'd');
     expect(row.parent).to.has.property('count', 1);
     expect(row.createdAt).to.not.be.eq(row.updatedAt);
     expect(row).to.has.property('version', 1);
-  });
-
-  it('should not update row', async () => {
-    // @todo: later
-    // const row = await broker.call(`db.update`, {
-    //   spaceId: SPACE_ID,
-    //   tableName: TABLE_NAME,
-    //   id: rowId,
-    //   inc: {
-    //     age: -10,
-    //   },
-    // });
-  });
-
-  it('should backup', async () => {
-    const file = await broker.call(`db.backup`, {
-      spaceId: SPACE_ID,
-      tableName: TABLE_NAME,
-    });
-
-    backupFile = file;
-    expect(file instanceof FileCursor).to.be.eq(true);
   });
 
   it('should remove row', async () => {
-    const row = await broker.call(`db.remove`, {
-      spaceId: SPACE_ID,
-      tableName: TABLE_NAME,
-      id: rowId,
-    });
+    const row = await service.call(
+      `remove`,
+      {
+        id: rowId,
+      },
+      {
+        schema: SCHEMA,
+      }
+    );
 
     expect(row).not.to.has.property('_id');
     expect(row).to.has.property('id');
-    expect(row).to.has.property('name', 'foo');
+    expect(row).to.has.property('name', 'foo 2');
     expect(row).to.has.property('age', 4);
     expect(row).to.not.has.property('title');
     expect(row.parent).to.has.property('foo', 'abc');
-    expect(row.parent).to.has.property('bar', 'b');
+    expect(row.parent).to.has.property('bar', 'd');
     expect(row.parent).to.has.property('count', 1);
     expect(row.createdAt).to.not.be.eq(row.updatedAt);
     expect(row).to.has.property('version', 1);
 
-    const row2 = await broker.call(`db.get`, {
-      spaceId: SPACE_ID,
-      tableName: TABLE_NAME,
-      id: rowId,
-    });
+    const res = await service.call(
+      `find`,
+      {
+        id: rowId,
+      },
+      {
+        schema: SCHEMA,
+      }
+    );
 
-    expect(row2).to.be.eq(null);
+    expect(res.data).to.has.property('length', 0);
   });
 
-  it('should restore', async () => {
-    const res = await broker.call(`db.restore`, {
-      spaceId: SPACE_ID,
-      tableName: TABLE_NAME,
-      from: backupFile,
-    });
-
-    expect(res).to.be.eq(true);
-
-    const row = await broker.call(`db.get`, {
-      spaceId: SPACE_ID,
-      tableName: TABLE_NAME,
-      id: rowId,
-    });
-
-    expect(row).not.to.has.property('_id');
-    expect(row).to.has.property('id');
-    expect(row).to.has.property('name', 'foo');
-    expect(row).to.has.property('age', 4);
+  it('should stop service', async () => {
+    await service.stop();
+    await mongod.stop();
   });
 });
