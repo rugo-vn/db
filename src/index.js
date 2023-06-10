@@ -105,7 +105,7 @@ defineAction('remove', async function (args, opts) {
   return resp(await model.findOneAndRemove(filters));
 });
 
-defineAction('import', async function ({ data, cond }, opts) {
+defineAction('import', async function ({ data }, opts) {
   const { model } = prepare(client, opts);
 
   data = data.map((item) => ({
