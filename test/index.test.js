@@ -43,6 +43,7 @@ const SCHEMA = {
 };
 
 describe('DB test', function () {
+  this.timeout(10000);
   let service, mongod, rowId;
 
   it('should spawn service', async () => {
@@ -283,6 +284,51 @@ describe('DB test', function () {
     );
 
     expect(res.data).to.has.property('length', 0);
+  });
+
+  it('should import data', async () => {
+    const data = [
+      {
+        id: '64844ce2750db3eb6252a905',
+        name: 'imported row',
+        version: 10,
+        createdAt: '2022-06-10T10:18:55.311Z',
+        updatedAt: '2022-06-10T10:18:55.311Z',
+      },
+      {
+        _id: '6484506a533079ff13383c9a',
+        name: 'imported row 2',
+        version: 10,
+        createdAt: '2022-06-01T10:18:55.311Z',
+        updatedAt: '2022-06-01T10:18:55.311Z',
+      },
+    ];
+
+    expect(
+      (await service.call(`find`, {}, { schema: SCHEMA })).meta.total
+    ).to.be.eq(3);
+
+    // full import
+    const res = await service.call(
+      `import`,
+      { data: [data[0]] },
+      { schema: SCHEMA }
+    );
+    expect(
+      (await service.call(`find`, {}, { schema: SCHEMA })).meta.total
+    ).to.be.eq(4);
+    expect(res).to.has.property('inserted', 1);
+
+    // partial import
+    const res2 = await service.call(
+      `import`,
+      { data: [data[0], data[1]] },
+      { schema: SCHEMA }
+    );
+    expect(
+      (await service.call(`find`, {}, { schema: SCHEMA })).meta.total
+    ).to.be.eq(5);
+    expect(res2).to.has.property('inserted', 1);
   });
 
   it('should stop service', async () => {

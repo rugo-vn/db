@@ -2,8 +2,9 @@ import { defineAction } from '@rugo-vn/service';
 import { buildQuery, pagination, prepare, resp } from './method.js';
 import { createConnection } from './mongoose.next.js';
 
-let mongoUri, client, db;
+let mongoUri, client;
 
+// @todo: invalid id check
 defineAction('start', async function (settings) {
   mongoUri = settings.uri;
 
@@ -12,7 +13,7 @@ defineAction('start', async function (settings) {
   }
 
   client = await createConnection(mongoUri).asPromise();
-  db = client.getClient().db();
+  client.getClient().db();
 });
 
 defineAction('stop', async function () {
@@ -102,4 +103,28 @@ defineAction('remove', async function (args, opts) {
   const { model } = prepare(client, opts);
   const { filters } = buildQuery(args);
   return resp(await model.findOneAndRemove(filters));
+});
+
+defineAction('import', async function ({ data, cond }, opts) {
+  const { model } = prepare(client, opts);
+
+  data = data.map((item) => ({
+    ...item,
+    _id: item._id || item.id,
+  }));
+
+  let res;
+  try {
+    res = await model.insertMany(data, {
+      rawResult: true,
+      ordered: false,
+    });
+  } catch (err) {
+    res = err.result;
+  }
+
+  return {
+    inserted: res.insertedCount,
+    total: data.length,
+  };
 });
