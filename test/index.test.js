@@ -1,6 +1,6 @@
 import { spawnService } from '@rugo-vn/service';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import { expect } from 'chai';
+import { assert, expect } from 'chai';
 
 const DB_NAME = 'test';
 const TABLE_NAME = 'demo';
@@ -329,6 +329,83 @@ describe('DB test', function () {
       (await service.call(`find`, {}, { schema: SCHEMA })).meta.total
     ).to.be.eq(5);
     expect(res2).to.has.property('inserted', 1);
+  });
+
+  it('should throw error when required', async () => {
+    try {
+      await service.call(`create`, { data: {} }, { schema: SCHEMA });
+      assert.fail('should error');
+    } catch (err) {
+      expect(err).to.has.property('name', 'ValidationError');
+      expect(err).to.has.property('message', 'Path `name` is required.');
+      expect(err).to.has.property('data');
+      expect(err.data).to.has.property('code', 20000);
+    }
+
+    try {
+      await service.call(
+        `create`,
+        {
+          data: {
+            parent: { complex: [{}] },
+          },
+        },
+        { schema: SCHEMA }
+      );
+      assert.fail('should error');
+    } catch (err) {
+      expect(err).to.has.property('name', 'ValidationError');
+      expect(err).to.has.property(
+        'message',
+        'Path `name` is required. Path `more` is required.'
+      );
+      expect(err).to.has.property('data');
+      expect(err.data).to.has.property('code', 20000);
+    }
+  });
+
+  it('should throw error when duplicate key', async () => {
+    await service.call(
+      `create`,
+      { data: { name: 'foo 1' } },
+      { schema: SCHEMA }
+    );
+
+    try {
+      await service.call(
+        `create`,
+        { data: { name: 'foo 1' } },
+        { schema: SCHEMA }
+      );
+      assert.fail('should error');
+    } catch (err) {
+      expect(err).to.has.property('name', 'ValidationError');
+      expect(err).to.has.property(
+        'message',
+        'Duplicate value ("foo 1") on path `name`'
+      );
+      expect(err).to.has.property('data');
+      expect(err.data).to.has.property('code', 11000);
+    }
+  });
+
+  it('should throw error when out of range', async () => {
+    try {
+      await service.call(
+        `create`,
+        { data: { name: 'foo 2', age: -100 } },
+        { schema: SCHEMA }
+      );
+      assert.fail('should error');
+    } catch (err) {
+      expect(err).to.has.property('name', 'ValidationError');
+      expect(err).to.has.property(
+        'message',
+        'Path `age` (-100) is less than minimum allowed value (0).'
+      );
+      expect(err).to.has.property('data');
+      expect(err.data).to.has.property('code', 20000);
+    }
   });
 
   it('should stop service', async () => {

@@ -1,4 +1,6 @@
 import { defineAction } from '@rugo-vn/service';
+import { MongoServerError } from 'mongodb';
+import { ValidationError } from './exceptions.js';
 import { buildQuery, pagination, prepare, resp } from './method.js';
 import { createConnection } from './mongoose.next.js';
 
@@ -20,6 +22,19 @@ defineAction('stop', async function () {
   await client.close();
 });
 
+defineAction('except', async function (ecpt) {
+  if (!ecpt instanceof Error) throw ecpt;
+
+  switch (ecpt.name) {
+    case 'MongoServerError':
+    case 'ValidationError':
+      throw new ValidationError(ecpt);
+  }
+
+  throw ecpt;
+});
+
+// actions
 defineAction('create', async function ({ data }, opts) {
   const { model } = prepare(client, opts);
   return resp(await model.create(data));

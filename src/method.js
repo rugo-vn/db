@@ -1,6 +1,6 @@
 import { Schema } from '@rugo-vn/schema';
 import { ObjectId } from 'mongodb';
-import { clone, equals, filter } from 'ramda';
+import { clone, equals } from 'ramda';
 import { DEFAULT_LIMIT, INVALID_PROPS } from './constants.js';
 
 const cache = {};
